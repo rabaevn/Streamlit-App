@@ -516,6 +516,9 @@ elif menu_option == 'התפלגות סוגי עבירות לפי מרחבים מ
 
     # Convert GeoDataFrame to GeoJSON and reproject to WGS84
     gdf = gdf.to_crs(epsg=4326)
+    gdf['MerhavName'] = gdf['MerhavName'].str.strip().str.replace(r'\r\n', '', regex=True)
+    df_all['PoliceMerhav'] = df_all['PoliceMerhav'].str.strip().str.replace(r'\r\n', '', regex=True)
+
     gdf['record_count'] = 0  # Initialize record count for mapping
     gdf['centroid_lat'] = gdf.geometry.centroid.y
     gdf['centroid_lon'] = gdf.geometry.centroid.x
