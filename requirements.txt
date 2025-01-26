@@ -1,0 +1,10 @@
+streamlit
+pandas
+requests
+plotly
+matplotlib
+seaborn
+geopandas
+fiona
+shapely
+pyproj
