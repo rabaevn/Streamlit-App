@@ -137,7 +137,8 @@ menu_option = st.sidebar.radio(
     [
         "נתוני הפשיעה במבט על",
         "התפלגות סוגי עבירות לפי מרחבים משטרתיים",
-        "השפעות מאורעות ה-7.10.2023 על התפלגות הפשיעה בישראל"
+        "השפעות מאורעות ה-7.10.2023 על התפלגות הפשיעה בישראל",
+        "מגמות הפשיעה לאורך זמן"
     ]
 )
 
@@ -331,6 +332,110 @@ if menu_option == 'נתוני הפשיעה במבט על':
     st.pyplot(fig)
 
 
+    ### next visualization
+    # Visualization
+    st.markdown("""
+     ### מגמות פשיעה לאורך זמן
+     .הגרף מציג את מגמות הפשיעה לאורך זמן בחלוקה לפי רבעונים. ניתן לסנן את סוגי העבירות בעזרת התיבות בצד ימין
+     """, unsafe_allow_html=True)
+    df = load_data()
+
+    # Preprocess Data
+    df['Category'] = df['StatisticGroup'].apply(categorize_statistic_group)
+    df = df.dropna(subset=['Year', 'Category'])
+    df['Year'] = df['Year'].astype(int)
+    df['Quarter'] = df['Quarter'].str.extract(r'(‎?\d)').fillna('1').astype(int)
+    df = df[df['Quarter'].isin([1, 2, 3, 4])]  # Ensure valid quarters
+    df['YearQuarter'] = df['Year'].astype(str) + '-Q' + df['Quarter'].astype(str)
+
+    # Layout with columns
+    col1, col2 = st.columns([4, 1], gap="medium")  # Adjust ratio to prioritize graph width
+
+    with col2:
+        # Add vertical alignment to checkboxes
+        st.markdown("<div style='padding-top: 50px;'></div>", unsafe_allow_html=True)
+
+        # Filter data based on selected crime types
+        st.markdown("### :בחר סוגי עבירות")
+        crime_types = sorted(df['Category'].dropna().unique())
+        selected_crime_types = []
+        for crime in crime_types:
+            if st.checkbox(crime, value=True):
+                selected_crime_types.append(crime)
+
+    with col1:
+        # Filter data
+        filtered_df = df[df['Category'].isin(selected_crime_types)]
+
+        # Aggregate data for visualization
+        agg_df = (
+            filtered_df.groupby(['YearQuarter', 'Category'])
+            .size()
+            .reset_index(name='Count')
+        )
+
+        # Ensure all quarters are displayed
+        unique_quarters = sorted(df['YearQuarter'].unique())
+        agg_df['YearQuarter'] = pd.Categorical(agg_df['YearQuarter'], categories=unique_quarters, ordered=True)
+
+        fig = px.line(
+            agg_df,
+            x='YearQuarter',
+            y='Count',
+            color='Category',
+            title="מגמות פשיעה לאורך השנים",
+            labels={
+                'YearQuarter': 'רבעון',
+                'Count': 'מספר עבירות',
+                'Category': 'סוג עבירה'
+            },
+            color_discrete_sequence=px.colors.qualitative.Bold
+        )
+
+        # Find the index of "2023-Q4" in the unique_quarters list
+        q4_index = unique_quarters.index("2023-Q4") if "2023-Q4" in unique_quarters else None
+
+        # Add the vertical line only if the index exists
+        if q4_index is not None:
+            fig.add_vline(
+                x="2023-Q4",
+                line_dash="dash",
+                line_color="gray",
+            )
+
+            # Add annotation
+            fig.add_annotation(
+                x="2023-Q4",
+                y=1.02,  # Position slightly above the plot area (2% above the top of the plot)
+                text="השבעה באוקטובר",
+                showarrow=False,
+                font=dict(size=14, color="gray"),
+                align="center",
+                xanchor="center",
+                yanchor="bottom",
+                yref="paper"  # Use the paper coordinate system for the Y-axis
+            )
+
+        fig.update_layout(
+            xaxis_title="רבעון",
+            yaxis_title="מספר עבירות",
+            yaxis=dict(tick0=0, dtick=500),
+            plot_bgcolor="#f9f9f9",
+            xaxis=dict(categoryorder="array", categoryarray=unique_quarters),
+            legend=dict(
+                title="",  # Remove legend title
+                itemclick=False,  # Disable clicking to hide traces
+                itemdoubleclick=False  # Disable double-click to isolate traces
+            ),
+            title=dict(
+                text="פשיעה לאורך השנים לפי סוגי עבירות",
+                x=0.5,  # Align title to the right
+                xanchor="center",
+                font=dict(size=24)  # Increase font size
+            )
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
 
 
 
@@ -650,4 +755,5 @@ elif menu_option == 'התפלגות סוגי עבירות לפי מרחבים מ
     )
     # Display the map
     st.plotly_chart(fig, use_container_width=True)
+
 
