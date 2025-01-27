@@ -355,7 +355,7 @@ if menu_option == 'נתוני הפשיעה במבט על':
         st.markdown("<div style='padding-top: 50px;'></div>", unsafe_allow_html=True)
 
         # Filter data based on selected crime types
-        st.markdown("### :בחר סוגי עבירות")
+        st.markdown("##### :בחר סוגי עבירות")
         crime_types = sorted(df['Category'].dropna().unique())
         selected_crime_types = []
         for crime in crime_types:
