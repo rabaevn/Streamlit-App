@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import geopandas as gpd
 import json
+import numpy as np
+import mplcursors
 
 
 #set page config
@@ -137,7 +139,8 @@ menu_option = st.sidebar.radio(
     [
         "נתוני הפשיעה במבט על",
         "התפלגות סוגי עבירות לפי מרחבים משטרתיים",
-        "השפעות מאורעות ה-7.10.2023 על התפלגות הפשיעה בישראל"
+        "השפעות מאורעות ה-7.10.2023 על התפלגות הפשיעה בישראל",
+        "ניתוח מגמות שיעור התעסוקה ונתוני פשיעה במחוזות שונים"
     ]
 )
 
@@ -265,7 +268,7 @@ if menu_option == 'נתוני הפשיעה במבט על':
     fixed_y_max = 18000  # Set this to an appropriate value for your dataset
 
     # Generate plot
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(7, 4))
 
     if split_by_quarter:
         if year_selected == "כל השנים":
@@ -296,16 +299,16 @@ if menu_option == 'נתוני הפשיעה במבט על':
             ax=ax,
             zorder=2
         )
-        ax.legend(title="ןועבר", fontsize=10, title_fontsize=12)
+        ax.legend(title="ןועבר", fontsize=4, title_fontsize=6)
         if year_selected == "כל השנים":
             ax.set_ylim(0, max_y + (0.1 * max_y))
         else:
             ax.set_ylim(0, 6000)
 
-        ax.set_xlabel("עשפה גוס", fontsize=14)
-        ax.set_ylabel("תוריבעה תומכ", fontsize=14)
+        ax.set_xlabel("עשפה גוס", fontsize=8)
+        ax.set_ylabel("תוריבעה תומכ", fontsize=8)
         ax.set_xticks(range(len(ticktext)))
-        ax.set_xticklabels(ticktext, rotation=0, ha='center', fontsize=12)
+        ax.set_xticklabels(ticktext, rotation=0, ha='center', fontsize=6)
         ax.grid(axis='y', color='lightgrey', linewidth=0.5, zorder=0)
 
     else:
@@ -322,12 +325,12 @@ if menu_option == 'נתוני הפשיעה במבט על':
         crime_counts.plot(kind="bar", ax=ax, color='orange', zorder=2)
 
         ax.set_xticks(range(len(ticktext)))
-        ax.set_xticklabels(ticktext, rotation=0, ha='center', fontsize=12)
-        ax.set_xlabel("עשפה גוס", fontsize=14)
-        ax.set_ylabel("תוריבעה תומכ", fontsize=14)
+        ax.set_xticklabels(ticktext, rotation=0, ha='center', fontsize=6)
+        ax.set_xlabel("עשפה גוס", fontsize=8)
+        ax.set_ylabel("תוריבעה תומכ", fontsize=8)
         ax.grid(axis='y', color='lightgrey', linewidth=0.5)
 
-    plt.tight_layout()
+    plt.tight_layout(pad=1.0, h_pad=0.5, w_pad=0.5)
     st.pyplot(fig)
 
 
@@ -377,19 +380,30 @@ if menu_option == 'נתוני הפשיעה במבט על':
         unique_quarters = sorted(df['YearQuarter'].unique())
         agg_df['YearQuarter'] = pd.Categorical(agg_df['YearQuarter'], categories=unique_quarters, ordered=True)
 
+        color_map = {
+            "עבירות פליליות כלליות": "#1f77b4",  # Blue
+            "עבירות מוסר וסדר ציבורי": "#ff7f0e",  # Orange
+            "עבירות ביטחון": "#2ca02c",  # Green
+            "עבירות כלכליות ומנהליות": "#d62728",  # Red
+            "עבירות תנועה": "#9467bd",  # Purple
+            "עבירות מרמה": "#8c564b"  # Brown
+        }
+
         fig = px.line(
             agg_df,
             x='YearQuarter',
             y='Count',
             color='Category',
-            title="מגמות פשיעה לאורך השנים",
+            title="מגמות פשיעה לפי סוגי עבירות",
             labels={
                 'YearQuarter': 'רבעון',
                 'Count': 'מספר עבירות',
                 'Category': 'סוג עבירה'
-            },
-            color_discrete_sequence=px.colors.qualitative.Bold
+            }
         )
+
+        # Apply fixed colors
+        fig.for_each_trace(lambda trace: trace.update(line_color=color_map[trace.name]))
 
         # Find the index of "2023-Q4" in the unique_quarters list
         q4_index = unique_quarters.index("2023-Q4") if "2023-Q4" in unique_quarters else None
@@ -754,5 +768,173 @@ elif menu_option == 'התפלגות סוגי עבירות לפי מרחבים מ
     )
     # Display the map
     st.plotly_chart(fig, use_container_width=True)
+elif menu_option=='ניתוח מגמות שיעור התעסוקה ונתוני פשיעה במחוזות שונים':
+    st.markdown("""
+        <style>
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 1000px;  /* Adjust the gap between checkbox and text */
+        }
+        .stCheckbox>div {
+            display: flex;
+            align-items: center;
+            gap: 1000px; /* Adjust padding between Streamlit checkbox and text */
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    crime_data = load_data()
+
+    employment_data = pd.read_csv("employmentRate.csv")
+    population_data = pd.read_csv("Population.csv")
+
+
+    # Remove invalid PoliceDistrict values
+    crime_data = crime_data[~crime_data['PoliceDistrict'].isin(["כל הארץ", "", None])]
+    employment_data = employment_data[~employment_data['PoliceDistrict'].isin(["כל הארץ", "", None])]
+    # Convert population to actual numbers (from thousands) and ensure numeric type
+    population_data["Population"] = pd.to_numeric(population_data["Population(k)"], errors='coerce')
+
+    # Efficiently count crimes using groupby
+    crime_data_grouped = crime_data.groupby(['Year', 'PoliceDistrict']).size().reset_index(name='Crime Count')
+
+    # Merge the datasets on a common column (e.g., Year, PoliceDistrict)
+    merged_data = pd.merge(crime_data_grouped, employment_data, on=["Year", "PoliceDistrict"], how="outer")
+    merged_data = pd.merge(merged_data, population_data, on=["Year", "PoliceDistrict"], how="outer")
+
+    # Ensure numeric types
+    merged_data["Crime Count"] = pd.to_numeric(merged_data["Crime Count"], errors='coerce').fillna(0)
+    merged_data["Population"] = pd.to_numeric(merged_data["Population"], errors='coerce').fillna(
+        1)  # Avoid division by zero
+
+    # Normalize crime count by population
+    merged_data["Crime Rate"] = (merged_data["Crime Count"] / merged_data["Population"]) # Per 1000 people
+
+    # Streamlit app
+    st.title("ניתוח מגמות שיעור התעסוקה ונתוני פשיעה במחוזות שונים")
+    st.markdown("""
+    <style>
+    .paragraph-with-padding {
+        padding-bottom: 75px;
+        padding-top: 50px;
+    }
+    </style>
+
+    <div class="paragraph-with-padding">
+    .בגרף זה ניתן לראות את הקשר בין שיעור התעסוקה וכמות הפשיעה לאורך השנים במחוזות המשטרה השונים שנבחרו<br>
+    .גודל הנקודות מייצג את שיעור הפשיעה ל-1,000 תושבים, בעוד שהציר האנכי מראה את אחוז התעסוקה בכל מחוז<br>
+    .ניתן להשתמש בתצוגה זו כדי לזהות תבניות או שינויים שחלו במהלך השנים במחוזות השונים
+    </div>
+    """, unsafe_allow_html=True)
+
+    # User selects Police District(s) with checkboxes
+
+    st.markdown("""
+        <style>
+        /* Adjust Streamlit checkbox layout */
+        .stCheckbox > label {
+            display: flex;
+            align-items: center;
+            gap: 15px;  /* Adjust this value to control the spacing */
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    police_districts = sorted(crime_data_grouped['PoliceDistrict'].unique())
+    selected_districts = []
+
+    # Layout for checkboxes and plot alignment
+    col1, col2 = st.columns([4, 1])  # Adjust the ratio for better alignment
+
+    with col2:
+        st.markdown(
+            "<h5 style='text-align: right; font-size: 18px;'>:בחר מחוזות</h5>",
+            unsafe_allow_html=True
+        )
+        for district in police_districts:
+            if st.checkbox(district, value=True):
+                selected_districts.append(district)
+
+    # Filter data based on selected Police District(s)
+    filtered_data = merged_data[merged_data['PoliceDistrict'].isin(selected_districts)]
+
+    fixed_colors = {
+        "מחוז דרומי": "#1f77b4",  # Example color (blue)
+        "מחוז חוף": "#ff7f0e",  # Example color (orange)
+        "מחוז ירושלים": "#2ca02c",  # Example color (green)
+        "מחוז מרכז": "#d62728",  # Example color (red)
+        "מחוז צפון": "#9467bd",  # Example color (purple)
+        "מחוז שי": "#8c564b",  # Example color (brown)
+        "מחוז תא": "#e377c2"  # Example color (pink)
+    }
+
+    # Ensure filtered data is not empty before plotting
+    if not filtered_data.empty:
+        with col1:
+            filtered_data["Year"] = pd.to_numeric(filtered_data["Year"], errors='coerce')
+
+            # Define common hover template
+            hover_template = (
+                "<b>מחוז:</b> %{customdata[0]}<br>"
+                "<b>שנה:</b> %{x}<br>"
+                "<b>שיעור תעסוקה:</b> %{y:.1f}%<br>"
+                "<b>כמות פשיעה:</b> %{customdata[1]:,.0f} פשעים ל - 1000 אנשים<extra></extra>"
+            )
+
+            # Create a Plotly scatter plot with consistent colors
+            fig = px.scatter(
+                filtered_data,
+                x="Year",
+                y="EmploymentRate",
+                size=filtered_data["Crime Rate"],
+                color="PoliceDistrict",
+                color_discrete_map=fixed_colors,  # Use the fixed color map
+                custom_data=["PoliceDistrict", "Crime Rate"],
+                hover_name="PoliceDistrict"
+            )
+
+            # Apply hover template
+            fig.update_traces(hovertemplate=hover_template)
+
+            # Add trend lines for each district with consistent colors
+            unique_districts = filtered_data['PoliceDistrict'].unique()
+            for district in unique_districts:
+                district_data = filtered_data[filtered_data["PoliceDistrict"] == district].sort_values("Year")
+                fig.add_scatter(
+                    x=district_data["Year"],
+                    y=district_data["EmploymentRate"],
+                    mode="lines+markers",
+                    line=dict(color=fixed_colors[district], width=2),
+                    name=district,
+                    showlegend=False,
+                    customdata=district_data[["PoliceDistrict", "Crime Rate"]],
+                    hovertemplate=hover_template
+                )
+
+            # Update layout for the plot
+            fig.update_layout(
+                title="השפעת שיעור התעסוקה על הפשיעה לאורך השנים",
+                title_x=0.70,
+                xaxis_title="שנה",
+                yaxis_title="(%) שיעור תעסוקה",
+                xaxis=dict(
+                    tickmode="array",
+                    tickvals=[2020, 2021, 2022, 2023],
+                    range=[2019.5, 2023.5]
+                ),
+                legend_title="מחוזות משטרתיים",
+                legend=dict(itemclick=False, itemdoubleclick=False)
+            )
+
+            # Show the interactive plot in Streamlit
+            st.plotly_chart(fig, use_container_width=True)
+
+    else:
+        st.write("No data available for the selected districts.")
+
+
+
+
 
 
