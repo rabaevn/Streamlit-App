@@ -8,7 +8,6 @@ import seaborn as sns
 import geopandas as gpd
 import json
 import numpy as np
-import mplcursors
 
 
 #set page config

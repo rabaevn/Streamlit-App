@@ -8,3 +8,4 @@ geopandas
 fiona
 shapely
 pyproj
+numpy
