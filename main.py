@@ -267,7 +267,7 @@ if menu_option == 'נתוני הפשיעה במבט על':
     fixed_y_max = 18000  # Set this to an appropriate value for your dataset
 
     # Generate plot
-    fig, ax = plt.subplots(figsize=(7, 4))
+    fig, ax = plt.subplots(figsize=(4, 2))  # Set the size smaller here
 
     if split_by_quarter:
         if year_selected == "כל השנים":
@@ -296,18 +296,20 @@ if menu_option == 'נתוני הפשיעה במבט על':
             palette=["#FF5733", "#FFC300", "#28B463", "#1E90FF"],
             order=unique_categories,
             ax=ax,
-            zorder=2
+            zorder=2,
+            width=0.6
         )
-        ax.legend(title="ןועבר", fontsize=4, title_fontsize=6)
+        ax.legend(title="ןועבר", fontsize=4, title_fontsize=4)
         if year_selected == "כל השנים":
             ax.set_ylim(0, max_y + (0.1 * max_y))
         else:
             ax.set_ylim(0, 6000)
+        ax.tick_params(axis='y', labelsize=5)  # Change '6' to your desired font size
 
-        ax.set_xlabel("עשפה גוס", fontsize=8)
-        ax.set_ylabel("תוריבעה תומכ", fontsize=8)
+        ax.set_xlabel("עשפה גוס", fontsize=6)
+        ax.set_ylabel("תוריבעה תומכ", fontsize=6)
         ax.set_xticks(range(len(ticktext)))
-        ax.set_xticklabels(ticktext, rotation=0, ha='center', fontsize=6)
+        ax.set_xticklabels(ticktext, rotation=0, ha='center', fontsize=5)
         ax.grid(axis='y', color='lightgrey', linewidth=0.5, zorder=0)
 
     else:
@@ -323,15 +325,17 @@ if menu_option == 'נתוני הפשיעה במבט על':
 
         crime_counts.plot(kind="bar", ax=ax, color='orange', zorder=2)
 
+        ax.tick_params(axis='y', labelsize=4)  # Change '6' to your desired font size
         ax.set_xticks(range(len(ticktext)))
-        ax.set_xticklabels(ticktext, rotation=0, ha='center', fontsize=6)
-        ax.set_xlabel("עשפה גוס", fontsize=8)
-        ax.set_ylabel("תוריבעה תומכ", fontsize=8)
+        ax.set_xticklabels(ticktext, rotation=0, ha='center', fontsize=4)
+        ax.set_xlabel("עשפה גוס", fontsize=6)
+        ax.set_ylabel("תוריבעה תומכ", fontsize=6)
         ax.grid(axis='y', color='lightgrey', linewidth=0.5)
 
-    plt.tight_layout(pad=1.0, h_pad=0.5, w_pad=0.5)
-    st.pyplot(fig)
+    plt.tight_layout(pad=0.5, h_pad=0.2, w_pad=0.2)
 
+    # Use dpi to control output size in Streamlit
+    st.pyplot(fig, dpi=300, use_container_width=False)
 
     ### next visualization
     # Visualization
@@ -914,7 +918,7 @@ elif menu_option=='ניתוח מגמות שיעור התעסוקה ונתוני 
             # Update layout for the plot
             fig.update_layout(
                 title="השפעת שיעור התעסוקה על הפשיעה לאורך השנים",
-                title_x=0.70,
+                title_x=0.60,
                 xaxis_title="שנה",
                 yaxis_title="(%) שיעור תעסוקה",
                 xaxis=dict(
