@@ -8,7 +8,7 @@ import seaborn as sns
 import geopandas as gpd
 import json
 import numpy as np
-
+import plotly.graph_objects as go
 
 #set page config
 st.set_page_config(page_title="Crime Dashboard", layout="wide")
@@ -300,12 +300,13 @@ if menu_option == 'נתוני הפשיעה במבט על':
             width=0.6
         )
         ax.legend(title="ןועבר", fontsize=4, title_fontsize=4)
+        ax.set_title("םינועבר יפל תוריבע תומכ", fontsize=6, pad=10, ha='right')
+
         if year_selected == "כל השנים":
             ax.set_ylim(0, max_y + (0.1 * max_y))
         else:
             ax.set_ylim(0, 6000)
         ax.tick_params(axis='y', labelsize=5)  # Change '6' to your desired font size
-
         ax.set_xlabel("עשפה גוס", fontsize=6)
         ax.set_ylabel("תוריבעה תומכ", fontsize=6)
         ax.set_xticks(range(len(ticktext)))
@@ -330,7 +331,11 @@ if menu_option == 'נתוני הפשיעה במבט על':
         ax.set_xticklabels(ticktext, rotation=0, ha='center', fontsize=4)
         ax.set_xlabel("עשפה גוס", fontsize=6)
         ax.set_ylabel("תוריבעה תומכ", fontsize=6)
+
+        ax.set_title("תוריבע יגוס תוגלפתה", fontsize=6, pad=10)
         ax.grid(axis='y', color='lightgrey', linewidth=0.5)
+
+
 
     plt.tight_layout(pad=0.5, h_pad=0.2, w_pad=0.2)
 
@@ -353,20 +358,32 @@ if menu_option == 'נתוני הפשיעה במבט על':
     df = df[df['Quarter'].isin([1, 2, 3, 4])]  # Ensure valid quarters
     df['YearQuarter'] = df['Year'].astype(str) + '-Q' + df['Quarter'].astype(str)
 
-    # Layout with columns
-    col1, col2 = st.columns([4, 1], gap="medium")  # Adjust ratio to prioritize graph width
+    # Add CSS to reduce checkbox size and padding
+    st.markdown("""
+        <style>
+            /* Reduce padding, margins, and font size for checkboxes */
+            div[data-testid="stCheckbox"] > div {
+                padding: 2px !important;
+                margin: 0px !important;
+            }
+
+            div[data-testid="stCheckbox"] label {
+                font-size: 4px !important;  /* Smaller font size */
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Adjust column ratio to make the plot area larger
+    col1, col2 = st.columns([6, 1], gap="medium")  # Increase plot area width
+    crime_types = sorted(df['Category'].dropna().unique())
 
     with col2:
-        # Add vertical alignment to checkboxes
-        st.markdown("<div style='padding-top: 50px;'></div>", unsafe_allow_html=True)
-
-        # Filter data based on selected crime types
         st.markdown("##### :בחר סוגי עבירות")
-        crime_types = sorted(df['Category'].dropna().unique())
         selected_crime_types = []
-        for crime in crime_types:
-            if st.checkbox(crime, value=True):
-                selected_crime_types.append(crime)
+        with st.container():
+            for crime in crime_types:
+                if st.checkbox(crime, value=True, key=f"checkbox_{crime}"):
+                    selected_crime_types.append(crime)
 
     with col1:
         # Filter data
@@ -384,9 +401,9 @@ if menu_option == 'נתוני הפשיעה במבט על':
         agg_df['YearQuarter'] = pd.Categorical(agg_df['YearQuarter'], categories=unique_quarters, ordered=True)
 
         color_map = {
-            "עבירות פליליות כלליות": "#1f77b4",  # Blue
+            "עבירות פליליות כלליות": "#2ca02c",  # Green
             "עבירות מוסר וסדר ציבורי": "#ff7f0e",  # Orange
-            "עבירות ביטחון": "#2ca02c",  # Green
+            "עבירות ביטחון": "#1f77b4",  # Blue
             "עבירות כלכליות ומנהליות": "#d62728",  # Red
             "עבירות תנועה": "#9467bd",  # Purple
             "עבירות מרמה": "#8c564b"  # Brown
@@ -408,30 +425,27 @@ if menu_option == 'נתוני הפשיעה במבט על':
         # Apply fixed colors
         fig.for_each_trace(lambda trace: trace.update(line_color=color_map[trace.name]))
 
-        # Find the index of "2023-Q4" in the unique_quarters list
+        # Add vertical line and annotation for "2023-Q4" if present
         q4_index = unique_quarters.index("2023-Q4") if "2023-Q4" in unique_quarters else None
-
-        # Add the vertical line only if the index exists
         if q4_index is not None:
             fig.add_vline(
                 x="2023-Q4",
                 line_dash="dash",
                 line_color="gray",
             )
-
-            # Add annotation
             fig.add_annotation(
                 x="2023-Q4",
-                y=1.02,  # Position slightly above the plot area (2% above the top of the plot)
+                y=1.02,
                 text="השבעה באוקטובר",
                 showarrow=False,
                 font=dict(size=14, color="gray"),
                 align="center",
                 xanchor="center",
                 yanchor="bottom",
-                yref="paper"  # Use the paper coordinate system for the Y-axis
+                yref="paper"
             )
 
+        # Update plot layout
         fig.update_layout(
             xaxis_title="רבעון",
             yaxis_title="מספר עבירות",
@@ -439,19 +453,21 @@ if menu_option == 'נתוני הפשיעה במבט על':
             plot_bgcolor="#f9f9f9",
             xaxis=dict(categoryorder="array", categoryarray=unique_quarters),
             legend=dict(
-                title="",  # Remove legend title
-                itemclick=False,  # Disable clicking to hide traces
-                itemdoubleclick=False  # Disable double-click to isolate traces
+                title="",
+                itemclick=False,
+                itemdoubleclick=False
             ),
             title=dict(
                 text="פשיעה לאורך השנים לפי סוגי עבירות",
-                x=0.5,  # Align title to the right
+                x=0.5,
                 xanchor="center",
-                font=dict(size=24)  # Increase font size
+                font=dict(size=24)
             )
         )
 
+        # Display the plot with full width
         st.plotly_chart(fig, use_container_width=True)
+
 
 
 
@@ -848,7 +864,7 @@ elif menu_option=='ניתוח מגמות שיעור התעסוקה ונתוני 
     selected_districts = []
 
     # Layout for checkboxes and plot alignment
-    col1, col2 = st.columns([4, 1])  # Adjust the ratio for better alignment
+    col1, col2 = st.columns([10, 1])  # Adjust the ratio for better alignment
 
     with col2:
         st.markdown(
@@ -871,40 +887,38 @@ elif menu_option=='ניתוח מגמות שיעור התעסוקה ונתוני 
         "מחוז שי": "#8c564b",  # Example color (brown)
         "מחוז תא": "#e377c2"  # Example color (pink)
     }
-
     # Ensure filtered data is not empty before plotting
     if not filtered_data.empty:
         with col1:
             filtered_data["Year"] = pd.to_numeric(filtered_data["Year"], errors='coerce')
 
-            # Define common hover template
+            # Define hover template
             hover_template = (
                 "<b>מחוז:</b> %{customdata[0]}<br>"
                 "<b>שנה:</b> %{x}<br>"
                 "<b>שיעור תעסוקה:</b> %{y:.1f}%<br>"
-                "<b>כמות פשיעה:</b> %{customdata[1]:,.0f} פשעים ל - 1000 אנשים<extra></extra>"
+                "<b>כמות פשיעה:</b> %{customdata[1]:,.0f} פשעים ל-1000 אנשים<extra></extra>"
             )
 
-            # Create a Plotly scatter plot with consistent colors
-            fig = px.scatter(
+            # --- Main Plot ---
+            fig_main = px.scatter(
                 filtered_data,
                 x="Year",
                 y="EmploymentRate",
-                size=filtered_data["Crime Rate"],
+                size="Crime Rate",
                 color="PoliceDistrict",
-                color_discrete_map=fixed_colors,  # Use the fixed color map
+                color_discrete_map=fixed_colors,
                 custom_data=["PoliceDistrict", "Crime Rate"],
-                hover_name="PoliceDistrict"
+                hover_name="PoliceDistrict",
+                size_max=30
             )
+            fig_main.update_traces(hovertemplate=hover_template)
 
-            # Apply hover template
-            fig.update_traces(hovertemplate=hover_template)
-
-            # Add trend lines for each district with consistent colors
+            # Add trend lines for each district
             unique_districts = filtered_data['PoliceDistrict'].unique()
             for district in unique_districts:
                 district_data = filtered_data[filtered_data["PoliceDistrict"] == district].sort_values("Year")
-                fig.add_scatter(
+                fig_main.add_scatter(
                     x=district_data["Year"],
                     y=district_data["EmploymentRate"],
                     mode="lines+markers",
@@ -914,27 +928,108 @@ elif menu_option=='ניתוח מגמות שיעור התעסוקה ונתוני 
                     customdata=district_data[["PoliceDistrict", "Crime Rate"]],
                     hovertemplate=hover_template
                 )
+            # --- Size Legend ---
+            size_legend_df = filtered_data.sort_values("Crime Rate")
 
-            # Update layout for the plot
-            fig.update_layout(
-                title="השפעת שיעור התעסוקה על הפשיעה לאורך השנים",
-                title_x=0.60,
-                xaxis_title="שנה",
-                yaxis_title="(%) שיעור תעסוקה",
+            # Correct bin definitions and labels
+            bins = [0, 1000, 2500, 4000, 6000, float("inf")]
+            labels = ["0-1000", "1000-2500", "2500-4000", "4000-6000", "6000+"]
+
+            # Categorize data and generate annotations
+            size_bins_with_labels = pd.cut(size_legend_df["Crime Rate"], bins=bins, labels=labels, include_lowest=True)
+
+            # Dynamically normalize size data to ensure a minimum bubble size
+            size_values = size_legend_df["Crime Rate"]
+            normalized_size = size_values.apply(
+                lambda x: max(x, 200))  # Use 200 as a minimum threshold for visualization
+
+            # Create size legend plot
+            fig_legend = px.scatter(
+                size_legend_df,
+                x=np.zeros(len(size_legend_df)),
+                y=size_bins_with_labels,
+                size=normalized_size,
+                size_max=30,
+                color_discrete_sequence=["grey"]
+            )
+
+            fig_legend.update_traces(
+                showlegend=False,
+                hovertemplate="",  # Disable tooltip
+                hoverinfo="none",  # No hover information at all
+                marker=dict(line=dict(width=0))  # Remove borders around bubbles
+            )
+
+            # --- Create centered annotations for each bubble ---
+            legend_annotations = []
+            for label in labels:
+                legend_annotations.append(dict(
+                    x=0.95,
+                    y=label,
+                    xref="paper",
+                    yref="y2",
+                    text=label,
+                    showarrow=False,
+                    font=dict(size=12, color="black"),
+                    xanchor="center",
+                    yanchor="middle"
+                ))
+
+            # --- Combine Main Plot and Legend ---
+            fig_combined = go.Figure(
+                data=[trace for trace in fig_main.data] + [t.update(xaxis="x2", yaxis="y2") for t in fig_legend.data],
+                layout=fig_main.layout
+            )
+            # Update layout to address alignment and readability
+            fig_combined.update_layout(
+                xaxis_domain=[0, 0.78],  # Adjust plot area domain to make space for the legend
                 xaxis=dict(
                     tickmode="array",
                     tickvals=[2020, 2021, 2022, 2023],
-                    range=[2019.5, 2023.5]
+                    range=[2019.8, 2023.2]
                 ),
+                xaxis2={"domain": [0.8, 0.9], "matches": None, "visible": False},
+                yaxis2={
+                    "anchor": "free",
+                    "overlaying": "y",
+                    "side": "right",
+                    "showline": False,
+                    "showgrid": False,
+                    "visible": False
+                },
+                annotations=legend_annotations,
                 legend_title="מחוזות משטרתיים",
-                legend=dict(itemclick=False, itemdoubleclick=False)
+                title="השפעת שיעור התעסוקה על הפשיעה לאורך השנים",
+                title_x=0.52,
+                xaxis_title="שנה",
+                yaxis_title="(%) שיעור תעסוקה",
+                font=dict(size=12),
+                showlegend=True,
+                margin=dict(l=0, r=30, t=40, b=40)  # Adjust margins to prevent cutoff
             )
 
-            # Show the interactive plot in Streamlit
-            st.plotly_chart(fig, use_container_width=True)
+            # Adjust the combined layout for a narrower legend
+            fig_combined.update_layout(
+                xaxis_domain=[0, 0.82],  # Widen the main plot area
+                xaxis2={"domain": [0.83, 0.9], "matches": None, "visible": False},  # Shrink legend width further
+                annotations=legend_annotations,
+                margin=dict(l=40, r=120, t=40, b=40)  # Reduce the right margin to prevent cutoff
+            )
+            # --- Display Plot ---
+            st.plotly_chart(fig_combined, use_container_width=True)
 
-    else:
-        st.write("No data available for the selected districts.")
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
