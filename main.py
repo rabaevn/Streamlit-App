@@ -864,7 +864,7 @@ elif menu_option=='ניתוח מגמות שיעור התעסוקה ונתוני 
     selected_districts = []
 
     # Layout for checkboxes and plot alignment
-    col1, col2 = st.columns([10, 1])  # Adjust the ratio for better alignment
+    col1, col2 = st.columns([8, 1])  # Adjust the ratio for better alignment
 
     with col2:
         st.markdown(
